@@ -136,7 +136,14 @@ class CmpileBuilder:
         # 3. Compilation
         self.log("Compiling...")
 
-        OUT_DIR = "out"
+        if not files:
+            self.log("No valid source files found.", "bold red")
+            return False
+
+        # Determine project root based on the first source file
+        project_root = os.path.dirname(files[0])
+        OUT_DIR = os.path.join(project_root, "out")
+        
         if not os.path.exists(OUT_DIR):
             os.makedirs(OUT_DIR)
 
@@ -200,7 +207,8 @@ class CmpileBuilder:
             else: linker = GCC_EXE
 
         exe_name = os.path.splitext(os.path.basename(files[0]))[0] + ".exe"
-        output_exe = os.path.join(OUT_DIR, exe_name)
+        # Output executable in the source directory (project root), not in 'out' folder
+        output_exe = os.path.join(project_root, exe_name)
 
         cmd = [linker] + object_files + ["-o", output_exe]
         if os.path.exists(lib_path):
