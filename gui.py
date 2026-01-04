@@ -14,7 +14,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Cmpile V2")
+        self.title("Cmpile V2.2")
         self.geometry("900x650")
 
         self.grid_columnconfigure(1, weight=1)
@@ -23,9 +23,9 @@ class App(ctk.CTk):
         # -- Sidebar --
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(5, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2.2", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # Main Actions are now relative to the active tab, or global?
@@ -42,8 +42,11 @@ class App(ctk.CTk):
         self.clear_btn = ctk.CTkButton(self.sidebar_frame, text="Clear List", fg_color="transparent", border_width=2, command=self.clear_files)
         self.clear_btn.grid(row=3, column=0, padx=20, pady=10)
 
+        self.clear_log_btn = ctk.CTkButton(self.sidebar_frame, text="Clear Output Log", fg_color="transparent", border_width=2, command=self.clear_log)
+        self.clear_log_btn.grid(row=4, column=0, padx=20, pady=10)
+
         self.quit_button = ctk.CTkButton(self.sidebar_frame, text="Quit", fg_color="transparent", border_width=2, command=self.quit)
-        self.quit_button.grid(row=5, column=0, padx=20, pady=10, sticky="s")
+        self.quit_button.grid(row=6, column=0, padx=20, pady=10, sticky="s")
 
         # -- Main Content Area (Tabview) --
         self.tabview = ctk.CTkTabview(self, corner_radius=10)
@@ -207,6 +210,11 @@ class App(ctk.CTk):
     def clear_files(self):
         self.source_files = []
         self.refresh_file_list()
+
+    def clear_log(self):
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("0.0", "end")
+        self.log_textbox.configure(state="disabled")
 
     def refresh_file_list(self):
         self.file_textbox.configure(state="normal")
