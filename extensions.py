@@ -38,7 +38,7 @@ class Extension:
 class RaylibExtension(Extension):
     def __init__(self):
         super().__init__("raylib")
-        self.version = "5.0"
+        self.version = "5.5"
         self.download_url = f"https://github.com/raysan5/raylib/archive/refs/tags/{self.version}.zip"
         self.zip_filename = f"raylib-{self.version}.zip"
         self.extract_folder_name = f"raylib-{self.version}"
@@ -206,7 +206,7 @@ class RaylibExtension(Extension):
 class OpenCVExtension(Extension):
     def __init__(self):
         super().__init__("opencv")
-        self.version = "4.10.0" 
+        self.version = "4.13.0"
         self.download_url = f"https://github.com/opencv/opencv/archive/refs/tags/{self.version}.zip"
         self.zip_filename = f"opencv-{self.version}.zip"
         self.extract_folder_name = f"opencv-{self.version}"

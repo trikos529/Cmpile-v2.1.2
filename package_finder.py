@@ -15,9 +15,12 @@ HEADER_MAPPING = {
     "glm/glm.hpp": "glm",
     "zlib.h": "zlib",
     "openssl/ssl.h": "openssl",
-    "boost/asio.hpp": "boost-asio", # Boost is modular in vcpkg
+    "boost/asio.hpp": "boost-asio",
     "raylib.h": "raylib",
-    # Add more as needed
+    "imgui.h": "imgui",
+    "assimp/scene.h": "assimp",
+    "eigen3/Eigen/Dense": "eigen3",
+    "yaml-cpp/yaml.h": "yaml-cpp",
 }
 
 def find_includes(file_path):
