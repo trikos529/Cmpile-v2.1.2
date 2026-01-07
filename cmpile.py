@@ -35,7 +35,7 @@ def ensure_environment(log_func):
     # Check GCC
     if not (download_script.is_tool_on_path("clang") or download_script.is_tool_on_path("gcc")):
         if not os.path.exists(GPP_EXE):
-            log_func("GCC not found. installing...")
+            log_func("GCC not found. Installing...")
             try:
                 download_script.install_gcc(log_func=log_func)
             except Exception as e:
@@ -50,7 +50,7 @@ def ensure_environment(log_func):
     # Check vcpkg
     vcpkg_mgr = vcpkg_automation.VcpkgManager(INTERNAL_DOWNLOADS, log_func=log_func)
     if not vcpkg_mgr.is_installed() and not download_script.is_tool_on_path("vcpkg"):
-        log_func("vcpkg not found. installing...")
+        log_func("vcpkg not found. Installing...")
         try:
             download_script.install_vcpkg(git_path_env=GIT_CMD, log_func=log_func)
         except Exception as e:

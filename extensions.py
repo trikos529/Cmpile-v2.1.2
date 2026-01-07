@@ -23,7 +23,13 @@ class Extension:
     def is_installed(self):
         raise NotImplementedError
 
+    def get_version(self):
+        return "N/A"
+
     def install(self, progress_callback=None):
+        raise NotImplementedError
+
+    def uninstall(self, progress_callback=None):
         raise NotImplementedError
 
     def get_include_path(self):
@@ -56,10 +62,21 @@ class RaylibExtension(Extension):
             self.lib_path = os.path.join(self.install_dir, "src")
 
     def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        elif self.path: # manual path
+             if not os.path.isdir(self.path):
+                 self.installed = False
+                 self.path = None
+        else: # not installed, check defaulted
+            if self.check_default_install():
+                self.set_manual_path(self.install_dir)
         return self.installed
 
     def check_default_install(self):
-        # Basic check: look for include/raylib.h and lib/libraylib.a
+        # Basic check: look for src/raylib.h and src/libraylib.a
         return os.path.exists(os.path.join(self.install_dir, "src", "raylib.h")) and \
                os.path.exists(os.path.join(self.install_dir, "src", "libraylib.a"))
 
@@ -188,6 +205,28 @@ class RaylibExtension(Extension):
             if progress_callback: progress_callback(f"Error: {e}")
             raise e
 
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("Raylib is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling Raylib...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            self.include_path = None
+            self.lib_path = None
+            if progress_callback: progress_callback("Raylib uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling Raylib: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
     def get_include_path(self):
         return self.include_path
 
@@ -228,6 +267,23 @@ class OpenCVExtension(Extension):
                  self.lib_path = os.path.join(self.install_dir, "build", "lib")
 
     def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        elif self.path: # manual path
+             if not os.path.isdir(self.path):
+                 self.installed = False
+                 self.path = None
+        else: # not installed, check defaulted
+            if self.check_default_install():
+                 # For OpenCV, set_manual_path is complex, we just set paths here if default found
+                 self.path = self.install_dir
+                 self.installed = True
+                 self.include_path = os.path.join(self.install_dir, "build", "install", "include")
+                 self.lib_path = os.path.join(self.install_dir, "build", "install", "x64", "mingw", "lib")
+                 if not os.path.exists(self.lib_path):
+                      self.lib_path = os.path.join(self.install_dir, "build", "lib")
         return self.installed
 
     def check_default_install(self):
@@ -375,6 +431,28 @@ class OpenCVExtension(Extension):
             if progress_callback: progress_callback(f"Error: {e}")
             raise e
     
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("OpenCV is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling OpenCV...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            self.include_path = None
+            self.lib_path = None
+            if progress_callback: progress_callback("OpenCV uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling OpenCV: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
     def _on_rm_error(self, func, path, exc_info):
         os.chmod(path, stat.S_IWRITE)
         func(path)
@@ -419,6 +497,109 @@ class OpenCVExtension(Extension):
              libs.extend(["-lgdi32", "-lcomdlg32", "-lole32", "-luuid"])
         return libs
 
+class MiniaudioExtension(Extension):
+    def __init__(self):
+        super().__init__("miniaudio")
+        self.version = "0.11.23"
+        self.download_url = f"https://github.com/mackron/miniaudio/archive/refs/tags/{self.version}.zip"
+        self.zip_filename = f"miniaudio-{self.version}.zip"
+        self.extract_folder_name = f"miniaudio-{self.version}"
+        self.install_dir = os.path.join(EXTENSIONS_DIR, "miniaudio")
+        
+        if self.is_installed():
+            self.path = self.install_dir
+            self.installed = True
+
+    def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        else:
+            if self.check_default_install():
+                self.path = self.install_dir
+                self.installed = True
+        return self.installed
+
+    def check_default_install(self):
+        return os.path.exists(os.path.join(self.install_dir, "miniaudio.h"))
+
+    def install(self, progress_callback=None):
+        if self.installed:
+            if progress_callback: progress_callback("miniaudio already installed.")
+            return
+
+        if not os.path.exists(EXTENSIONS_DIR):
+            os.makedirs(EXTENSIONS_DIR)
+
+        try:
+            if progress_callback: progress_callback(f"Downloading {self.zip_filename}...")
+            zip_path = os.path.join(EXTENSIONS_DIR, self.zip_filename)
+            
+            response = requests.get(self.download_url, stream=True)
+            response.raise_for_status()
+            
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            if progress_callback: progress_callback("Extracting...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(EXTENSIONS_DIR)
+            
+            extracted_path = os.path.join(EXTENSIONS_DIR, self.extract_folder_name)
+            
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            shutil.move(extracted_path, self.install_dir)
+            
+            try: os.remove(zip_path)
+            except: pass
+
+            if progress_callback: progress_callback("miniaudio installed successfully.")
+            self.path = self.install_dir
+            self.installed = True
+
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error: {e}")
+            raise e
+
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("miniaudio is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling miniaudio...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            if progress_callback: progress_callback("miniaudio uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling miniaudio: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
+    def _on_rm_error(self, func, path, exc_info):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    def get_include_path(self):
+        return self.install_dir
+
+    def get_lib_path(self):
+        return None
+
+    def get_link_flags(self):
+        if os.name == 'nt':
+            return []
+        return ["-lpthread", "-lm", "-ldl"]
+
 class CustomExtension(Extension):
     def __init__(self, name, include_path, lib_path, flags):
         super().__init__(name)
@@ -433,6 +614,9 @@ class CustomExtension(Extension):
 
     def install(self, progress_callback=None):
         if progress_callback: progress_callback(f"Custom extension '{self.name}' is manually managed.")
+
+    def uninstall(self, progress_callback=None):
+         if progress_callback: progress_callback(f"Custom extension '{self.name}' can be removed from the list.")
 
     def get_include_path(self):
         return self.include_path
@@ -464,7 +648,8 @@ class ExtensionManager:
     def __init__(self):
         self.extensions = {
             "raylib": RaylibExtension(),
-            "opencv": OpenCVExtension()
+            "opencv": OpenCVExtension(),
+            "miniaudio": MiniaudioExtension()
         }
         self.load_custom_extensions()
 
@@ -496,6 +681,11 @@ class ExtensionManager:
     def add_extension(self, extension):
         self.extensions[extension.name] = extension
         if isinstance(extension, CustomExtension):
+            self.save_custom_extensions()
+
+    def remove_extension(self, name):
+        if name in self.extensions:
+            del self.extensions[name]
             self.save_custom_extensions()
 
     def get_extension(self, name):

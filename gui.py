@@ -14,7 +14,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Cmpile V2.3")
+        self.title("Cmpile V2.4")
         self.geometry("900x650")
 
         self.grid_columnconfigure(1, weight=1)
@@ -25,13 +25,8 @@ class App(ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(5, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2.3", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2.4", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-
-        # Main Actions are now relative to the active tab, or global?
-        # Keeping them global for the "Build" flow as they manipulate the file list which is in Build tab.
-        # But "Extensions" tab has different actions.
-        # Ideally, sidebar buttons should control the "Build" tab context if that's the primary functions.
         
         self.add_file_btn = ctk.CTkButton(self.sidebar_frame, text="Add Files", command=self.add_files)
         self.add_file_btn.grid(row=1, column=0, padx=20, pady=10)
@@ -69,9 +64,13 @@ class App(ctk.CTk):
         self.source_files = []
         self.builder = cmpile.CmpileBuilder(log_callback=self.log_message)
         self.extension_manager = extensions.ExtensionManager()
+        self._ext_status_cache = {}
         
         # Initialize extension list UI
         self.refresh_extension_list()
+        
+        # Start auto-refresh
+        self.check_extensions_status()
 
     def setup_build_tab(self):
         tab = self.tabview.tab("Build")
@@ -131,13 +130,37 @@ class App(ctk.CTk):
         # Add items
         for ext in self.extension_manager.get_all_extensions():
             self.create_extension_item(ext)
+            self._ext_status_cache[ext.name] = ext.is_installed()
+
+    def check_extensions_status(self):
+        changed = False
+        for ext in self.extension_manager.get_all_extensions():
+            # Trigger dynamic check
+            new_status = ext.is_installed()
+            if self._ext_status_cache.get(ext.name) != new_status:
+                changed = True
+                # Cache will be updated in refresh_extension_list
+                break
+        
+        if changed:
+            self.refresh_extension_list()
+        
+        # Check again in 2 seconds
+        self.after(2000, self.check_extensions_status)
 
     def create_extension_item(self, ext):
         item_frame = ctk.CTkFrame(self.ext_scroll_frame)
         item_frame.pack(fill="x", padx=5, pady=5)
 
-        name_lbl = ctk.CTkLabel(item_frame, text=ext.name, font=("Arial", 16, "bold"))
-        name_lbl.pack(side="left", padx=10, pady=10)
+        # info_frame for name and version
+        info_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        info_frame.pack(side="left", padx=10, pady=5)
+
+        name_lbl = ctk.CTkLabel(info_frame, text=ext.name, font=("Arial", 16, "bold"))
+        name_lbl.grid(row=0, column=0, sticky="w")
+
+        version_lbl = ctk.CTkLabel(info_frame, text=ext.get_version(), font=("Arial", 12, "bold"), text_color="gray")
+        version_lbl.grid(row=1, column=0, sticky="e", padx=(10, 0))
 
         status_text = "Installed" if ext.is_installed() else "Not Installed"
         status_color = "green" if ext.is_installed() else "gray"
@@ -155,7 +178,11 @@ class App(ctk.CTk):
                                      command=lambda e=ext: self.set_extension_path(e))
             path_btn.pack(side="right", padx=5)
         else:
-             ctk.CTkLabel(item_frame, text=f"Path: {ext.path}", font=("Arial", 10)).pack(side="bottom", anchor="w", padx=10, pady=(0,5))
+             ctk.CTkLabel(item_frame, text=f"Path: {ext.path}", font=("Arial", 10)).pack(side="left", anchor="w", padx=10)
+             
+             uninstall_btn = ctk.CTkButton(item_frame, text="Uninstall", width=100, fg_color="red", hover_color="darkred",
+                                           command=lambda e=ext: self.uninstall_extension(e))
+             uninstall_btn.pack(side="right", padx=10)
 
     def set_extension_path(self, ext):
         path = filedialog.askdirectory(title=f"Select {ext.name} directory")
@@ -165,6 +192,25 @@ class App(ctk.CTk):
                 self.refresh_extension_list()
             else:
                 self.log_message(f"Invalid path for {ext.name}. Could not find required files.", "error")
+
+    def uninstall_extension(self, ext):
+        if isinstance(ext, extensions.CustomExtension):
+            self.extension_manager.remove_extension(ext.name)
+            self.log_message(f"Custom extension '{ext.name}' removed from list.", "success")
+            self.refresh_extension_list()
+        else:
+            self.log_message(f"Uninstalling {ext.name}...", "info")
+            t = threading.Thread(target=self._run_uninstall, args=(ext,))
+            t.start()
+    
+    def _run_uninstall(self, ext):
+        def progress(msg):
+             self.log_message(msg)
+        try:
+            ext.uninstall(progress_callback=progress)
+            self.after(0, self.refresh_extension_list)
+        except Exception as e:
+            self.log_message(str(e), "error")
 
     def install_extension(self, ext):
         self.log_message(f"Installing {ext.name}...", "info")

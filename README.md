@@ -32,10 +32,17 @@ On the first run, Cmpile will:
 - **Dependencies**: The tool scans your C++ file for headers. If it sees a known header (like `fmt/core.h` or `nlohmann/json.hpp`), it installs the corresponding package via vcpkg.
 
 ## What's New
+ # Version 2.4
+  - Added version number visibility next to each one of the extensions.
+  - Added a new Uninstall button to the Extensions tab for uninstalling extensions easier instead of deleting the files manually.
+  - More extensions in the Extensions tab are now available.
+  - Added more packages to the package finder.
+  - Fixed some errors when downloading essential files for the compiler.
+  - When extensions are deleted manually, the page now refreshes instantly without a restart.
  # Version 2.3
   - Fixed some errors with dependency installtion.
   - Some other bugs fixes and improvements.
-  - Added dependncies for extensions to be downloaded automatocally.
+  - Added dependencies for extensions to be downloaded automatically.
   - Updated Compiler (LLVM-MinGW) and Git to latest version.
   - Updated Extensions to latest versions.
   - Added more packages to package finder.

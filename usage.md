@@ -16,6 +16,9 @@ The progress of the compilation will be displayed in the output window, allowing
 - **Customizable Settings**: Tailor the compilation process to fit your specific requirements.
 - **Real-time Output**: Monitor the compilation progress and view errors as they occur.
 - **User-friendly Interface**: Intuitive design that makes it easy for users of all skill levels to navigate and use the tool.
+- **Extension Management**: Manage and install extensions to extend the use and functionality of Cmpile.
+- **Package Management**: Manage and install packages according to your needs for your projects thenks to vcpkg.
+- **Automatic Dependency Handling**: When installing extensions, all of their dependencies are downloaded automatically for you.
 
 ## Support
 If you ever enounter any issues or have questions about Cmpile, you can open an issue on our GitHub repository. We are here to help and support you in any way we can.

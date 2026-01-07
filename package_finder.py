@@ -21,6 +21,9 @@ HEADER_MAPPING = {
     "assimp/scene.h": "assimp",
     "eigen3/Eigen/Dense": "eigen3",
     "yaml-cpp/yaml.h": "yaml-cpp",
+    "miniaudio/miniaudio.h": "miniaudio",
+    "absent/absent.h": "absent",
+    "vulkan/vulkan.h": "vulkan",
 }
 
 def find_includes(file_path):
