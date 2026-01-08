@@ -328,25 +328,6 @@ class OpenCVExtension(Extension):
             if progress_callback: progress_callback("OpenCV already installed.")
             return
 
-        # Check CMake
-        cmake_cmd = "cmake"
-        import download_script
-        if not shutil.which("cmake"):
-             # checks internal path
-             cmake_internal = os.path.join(download_script.CMAKE_DIR, "bin", "cmake.exe")
-             if not os.path.exists(cmake_internal):
-                  if progress_callback: progress_callback("CMake not found. Downloading portable CMake...")
-                  try:
-                       download_script.install_cmake(log_func=lambda m, s="": progress_callback(m) if progress_callback else None)
-                  except Exception as e:
-                       raise Exception(f"Failed to install CMake: {e}")
-             
-             if os.path.exists(cmake_internal):
-                  # Add to path for this session so subprocess finds it
-                  os.environ["PATH"] = os.path.dirname(cmake_internal) + os.pathsep + os.environ["PATH"]
-             else:
-                  raise Exception("CMake is required but could not be installed.")
-
         if not os.path.exists(EXTENSIONS_DIR):
             os.makedirs(EXTENSIONS_DIR)
 
@@ -600,6 +581,424 @@ class MiniaudioExtension(Extension):
             return []
         return ["-lpthread", "-lm", "-ldl"]
 
+class TinyXMLExtension(Extension):
+    def __init__(self):
+        super().__init__("tinyxml")
+        self.version = "11.0.0"
+        self.download_url = f"https://github.com/leethomason/tinyxml2/archive/refs/tags/{self.version}.zip"
+        self.zip_filename = f"tinyxml2-{self.version}.zip"
+        self.extract_folder_name = f"tinyxml2-{self.version}"
+        self.install_dir = os.path.join(EXTENSIONS_DIR, "tinyxml2")
+        
+        self.include_path = None
+        self.lib_path = None
+
+        if self.check_default_install():
+            self.path = self.install_dir
+            self.installed = True
+            self.include_path = self.install_dir
+            self.lib_path = os.path.join(self.install_dir, "build")
+        else:
+            self.path = None
+            self.installed = False
+
+    def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        elif self.path: # manual path
+             if not os.path.isdir(self.path):
+                 self.installed = False
+                 self.path = None
+        else: # not installed, check defaulted
+            if self.check_default_install():
+                self.path = self.install_dir
+                self.installed = True
+                self.include_path = self.install_dir
+                self.lib_path = os.path.join(self.install_dir, "build")
+        return self.installed
+
+    def check_default_install(self):
+        # Look for tinyxml2.h in install_dir and libtinyxml2.a in build
+        # Windows might have .lib instead of .a
+        return os.path.exists(os.path.join(self.install_dir, "tinyxml2.h")) and \
+               (os.path.exists(os.path.join(self.install_dir, "build", "libtinyxml2.a")) or \
+                os.path.exists(os.path.join(self.install_dir, "build", "tinyxml2.lib")))
+
+    def install(self, progress_callback=None):
+        if self.installed:
+            if progress_callback: progress_callback("TinyXML2 already installed.")
+            return
+
+        if not os.path.exists(EXTENSIONS_DIR):
+            os.makedirs(EXTENSIONS_DIR)
+
+        try:
+            # 1. Download
+            if progress_callback: progress_callback(f"Downloading {self.zip_filename}...")
+            zip_path = os.path.join(EXTENSIONS_DIR, self.zip_filename)
+            
+            response = requests.get(self.download_url, stream=True)
+            response.raise_for_status()
+            
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # 2. Extract
+            if progress_callback: progress_callback("Extracting TinyXML2 source...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(EXTENSIONS_DIR)
+            
+            extracted_path = os.path.join(EXTENSIONS_DIR, self.extract_folder_name)
+            
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            shutil.move(extracted_path, self.install_dir)
+            
+            try: os.remove(zip_path)
+            except: pass
+
+            # 3. Build with CMake
+            if progress_callback: progress_callback("Configuring TinyXML2 with CMake...")
+            build_dir = os.path.join(self.install_dir, "build")
+            if not os.path.exists(build_dir): os.makedirs(build_dir)
+            
+            # We use common CMake flags for static build
+            cmake_args = [
+                "cmake", "..", 
+                "-DBUILD_SHARED_LIBS=OFF", 
+                "-DBUILD_TESTS=OFF"
+            ]
+            
+            if os.name == 'nt' and shutil.which("mingw32-make"):
+                 cmake_args.extend(["-G", "MinGW Makefiles"])
+
+            result = subprocess.run(cmake_args, cwd=build_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                 raise Exception(f"TinyXML2 CMake Configuration Failed:\n{result.stderr}")
+
+            # Build
+            if progress_callback: progress_callback("Building TinyXML2...")
+            build_cmd = ["cmake", "--build", ".", "--config", "Release"]
+            
+            result = subprocess.run(build_cmd, cwd=build_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                 raise Exception(f"TinyXML2 Build Failed:\n{result.stderr}")
+
+            if progress_callback: progress_callback("TinyXML2 installed successfully.")
+            self.installed = True
+            self.path = self.install_dir
+            self.include_path = self.install_dir
+            self.lib_path = build_dir
+
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error: {e}")
+            raise e
+
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("TinyXML2 is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling TinyXML2...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            self.include_path = None
+            self.lib_path = None
+            if progress_callback: progress_callback("TinyXML2 uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling TinyXML2: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
+    def _on_rm_error(self, func, path, exc_info):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    def get_include_path(self):
+        return self.include_path
+
+    def get_lib_path(self):
+        return self.lib_path
+
+    def get_link_flags(self):
+        return ["-ltinyxml2"]
+
+class MinizExtension(Extension):
+    def __init__(self):
+        super().__init__("miniz")
+        self.version = "3.1.0"
+        self.download_url = f"https://github.com/richgel999/miniz/archive/refs/tags/{self.version}.zip"
+        self.zip_filename = f"miniz-{self.version}.zip"
+        self.extract_folder_name = f"miniz-{self.version}"
+        self.install_dir = os.path.join(EXTENSIONS_DIR, "miniz")
+        
+        self.include_path = None
+        self.lib_path = None
+
+        if self.check_default_install():
+            self.path = self.install_dir
+            self.installed = True
+            self.include_path = self.install_dir
+            self.lib_path = os.path.join(self.install_dir, "build")
+        else:
+            self.path = None
+            self.installed = False
+
+    def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        elif self.path: # manual path
+             if not os.path.isdir(self.path):
+                 self.installed = False
+                 self.path = None
+        else: # not installed, check defaulted
+            if self.check_default_install():
+                self.path = self.install_dir
+                self.installed = True
+                self.include_path = self.install_dir
+                self.lib_path = os.path.join(self.install_dir, "build")
+        return self.installed
+
+    def check_default_install(self):
+        return os.path.exists(os.path.join(self.install_dir, "miniz.h")) and \
+               (os.path.exists(os.path.join(self.install_dir, "build", "libminiz.a")) or \
+                os.path.exists(os.path.join(self.install_dir, "build", "miniz.lib")))
+
+    def install(self, progress_callback=None):
+        if self.installed:
+            if progress_callback: progress_callback("miniz already installed.")
+            return
+
+        if not os.path.exists(EXTENSIONS_DIR):
+            os.makedirs(EXTENSIONS_DIR)
+
+        try:
+            # 1. Download
+            if progress_callback: progress_callback(f"Downloading {self.zip_filename}...")
+            zip_path = os.path.join(EXTENSIONS_DIR, self.zip_filename)
+            
+            response = requests.get(self.download_url, stream=True)
+            response.raise_for_status()
+            
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # 2. Extract
+            if progress_callback: progress_callback("Extracting miniz source...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(EXTENSIONS_DIR)
+            
+            extracted_path = os.path.join(EXTENSIONS_DIR, self.extract_folder_name)
+            
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            shutil.move(extracted_path, self.install_dir)
+            
+            try: os.remove(zip_path)
+            except: pass
+
+            # 3. Build with CMake
+            if progress_callback: progress_callback("Configuring miniz with CMake...")
+            build_dir = os.path.join(self.install_dir, "build")
+            if not os.path.exists(build_dir): os.makedirs(build_dir)
+            
+            cmake_args = [
+                "cmake", "..", 
+                "-DBUILD_SHARED_LIBS=OFF", 
+                "-DMINIZ_BUILD_EXAMPLES=OFF",
+                "-DMINIZ_BUILD_UNIT_TESTS=OFF"
+            ]
+            
+            if os.name == 'nt' and shutil.which("mingw32-make"):
+                 cmake_args.extend(["-G", "MinGW Makefiles"])
+
+            result = subprocess.run(cmake_args, cwd=build_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                 raise Exception(f"miniz CMake Configuration Failed:\n{result.stderr}")
+
+            # Build
+            if progress_callback: progress_callback("Building miniz...")
+            build_cmd = ["cmake", "--build", ".", "--config", "Release"]
+            
+            result = subprocess.run(build_cmd, cwd=build_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                 raise Exception(f"miniz Build Failed:\n{result.stderr}")
+
+            if progress_callback: progress_callback("miniz installed successfully.")
+            self.installed = True
+            self.path = self.install_dir
+            self.include_path = self.install_dir
+            self.lib_path = build_dir
+
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error: {e}")
+            raise e
+
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("miniz is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling miniz...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            self.include_path = None
+            self.lib_path = None
+            if progress_callback: progress_callback("miniz uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling miniz: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
+    def _on_rm_error(self, func, path, exc_info):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    def get_include_path(self):
+        return self.include_path
+
+    def get_lib_path(self):
+        return self.lib_path
+
+    def get_link_flags(self):
+        return ["-lminiz"]
+
+class EnttExtension(Extension):
+    def __init__(self):
+        super().__init__("entt")
+        self.version = "3.16.0"
+        self.download_url = f"https://github.com/skypjack/entt/archive/refs/tags/v{self.version}.zip"
+        self.zip_filename = f"entt-{self.version}.zip"
+        self.extract_folder_name = f"entt-{self.version}"
+        self.install_dir = os.path.join(EXTENSIONS_DIR, "entt")
+        
+        self.include_path = None
+
+        if self.check_default_install():
+            self.path = self.install_dir
+            self.installed = True
+            self.include_path = os.path.join(self.install_dir, "single_include")
+        else:
+            self.path = None
+            self.installed = False
+
+    def is_installed(self):
+        if self.path == self.install_dir:
+            if not self.check_default_install():
+                self.installed = False
+                self.path = None
+        elif self.path: # manual path
+             if not os.path.isdir(self.path):
+                 self.installed = False
+                 self.path = None
+        else: # not installed, check defaulted
+            if self.check_default_install():
+                self.path = self.install_dir
+                self.installed = True
+                self.include_path = os.path.join(self.install_dir, "single_include")
+        return self.installed
+
+    def check_default_install(self):
+        return os.path.exists(os.path.join(self.install_dir, "single_include", "entt", "entt.hpp"))
+
+    def install(self, progress_callback=None):
+        if self.installed:
+            if progress_callback: progress_callback("EnTT already installed.")
+            return
+
+        if not os.path.exists(EXTENSIONS_DIR):
+            os.makedirs(EXTENSIONS_DIR)
+
+        try:
+            # 1. Download
+            if progress_callback: progress_callback(f"Downloading {self.zip_filename}...")
+            zip_path = os.path.join(EXTENSIONS_DIR, self.zip_filename)
+            
+            response = requests.get(self.download_url, stream=True)
+            response.raise_for_status()
+            
+            with open(zip_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # 2. Extract
+            if progress_callback: progress_callback("Extracting EnTT source...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(EXTENSIONS_DIR)
+            
+            extracted_path = os.path.join(EXTENSIONS_DIR, self.extract_folder_name)
+            
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            shutil.move(extracted_path, self.install_dir)
+            
+            try: os.remove(zip_path)
+            except: pass
+
+            if progress_callback: progress_callback("EnTT installed successfully (Header-only).")
+            self.installed = True
+            self.path = self.install_dir
+            self.include_path = os.path.join(self.install_dir, "single_include")
+
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error: {e}")
+            raise e
+
+    def uninstall(self, progress_callback=None):
+        if not self.installed:
+            if progress_callback: progress_callback("EnTT is not installed.")
+            return
+        
+        try:
+            if progress_callback: progress_callback("Uninstalling EnTT...")
+            if os.path.exists(self.install_dir):
+                shutil.rmtree(self.install_dir, onerror=self._on_rm_error)
+            
+            self.installed = False
+            self.path = None
+            self.include_path = None
+            if progress_callback: progress_callback("EnTT uninstalled successfully.")
+        except Exception as e:
+            if progress_callback: progress_callback(f"Error uninstalling EnTT: {e}")
+            raise e
+
+    def get_version(self):
+        return f"v{self.version}"
+
+    def _on_rm_error(self, func, path, exc_info):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    def get_include_path(self):
+        return self.include_path
+
+    def get_lib_path(self):
+        return None
+
+    def get_link_flags(self):
+        return []
+
 class CustomExtension(Extension):
     def __init__(self, name, include_path, lib_path, flags):
         super().__init__(name)
@@ -649,7 +1048,10 @@ class ExtensionManager:
         self.extensions = {
             "raylib": RaylibExtension(),
             "opencv": OpenCVExtension(),
-            "miniaudio": MiniaudioExtension()
+            "miniaudio": MiniaudioExtension(),
+            "tinyxml": TinyXMLExtension(),
+            "miniz": MinizExtension(),
+            "entt": EnttExtension()
         }
         self.load_custom_extensions()
 

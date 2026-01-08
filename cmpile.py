@@ -14,6 +14,8 @@ INTERNAL_DOWNLOADS = download_script.INTERNAL_DOWNLOADS
 GCC_BIN = os.path.join(download_script.GCC_DIR, "bin")
 GPP_EXE = os.path.join(GCC_BIN, "clang++.exe")
 GCC_EXE = os.path.join(GCC_BIN, "clang.exe")
+CMAKE_BIN = os.path.join(download_script.CMAKE_DIR, "bin")
+CMAKE_EXE = os.path.join(CMAKE_BIN, "cmake.exe")
 GIT_CMD = os.path.join(download_script.INTERNAL_DOWNLOADS, "git", "cmd")
 
 def setup_git_env():
@@ -46,6 +48,19 @@ def ensure_environment(log_func):
     if not (download_script.is_tool_on_path("clang") or download_script.is_tool_on_path("gcc")):
         if GCC_BIN not in os.environ["PATH"]:
             os.environ["PATH"] = GCC_BIN + os.pathsep + os.environ["PATH"]
+
+    # Check CMake
+    if not download_script.is_tool_on_path("cmake"):
+        if not os.path.exists(CMAKE_EXE):
+            log_func("CMake not found. Installing...")
+            try:
+                download_script.install_cmake(log_func=log_func)
+            except Exception as e:
+                log_func(f"Failed to install CMake: {e}", "bold red")
+                raise e
+        
+        if os.path.exists(CMAKE_BIN) and CMAKE_BIN not in os.environ["PATH"]:
+            os.environ["PATH"] = CMAKE_BIN + os.pathsep + os.environ["PATH"]
 
     # Check vcpkg
     vcpkg_mgr = vcpkg_automation.VcpkgManager(INTERNAL_DOWNLOADS, log_func=log_func)

@@ -225,6 +225,7 @@ if __name__ == "__main__":
     _default_log("Checking dependencies...", "bold blue")
     install_git(log_func=_default_log)
     install_gcc(log_func=_default_log)
+    install_cmake(log_func=_default_log)
 
     git_cmd_path = os.path.join(GIT_DIR, "cmd")
     install_vcpkg(git_path_env=git_cmd_path, log_func=_default_log)

@@ -4,7 +4,7 @@
 Cmpile is a powerful tool designed to simplify the process of compiling and managing software projects. This guide will walk you through the basic usage of the Cmpile GUI to help you get started quickly.
 
 ## Installation
-To get started with Cmpile, no installation is required. Simply download the `.exe` file from the Releases section of our GitHub repository. Once downloaded, you can run the executable directly to start using Cmpile.
+To get started with Cmpile, the process is simple. Simply, build the project as described in the README.md file and run the Cmpile.exe file you will find inside the dist folder to start using Cmpile.
 
 ## Usage
 Cmpile is easy and simple to use. You first need to add the files you want to compile to the file list. You can do this by clicking the "Add Files" button and selecting the desired files from your system.

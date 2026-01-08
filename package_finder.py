@@ -24,6 +24,10 @@ HEADER_MAPPING = {
     "miniaudio/miniaudio.h": "miniaudio",
     "absent/absent.h": "absent",
     "vulkan/vulkan.h": "vulkan",
+    "anyrpc/anyrpc.h": "anyrpc",
+    "adios2/adios2.h": "adios2",
+    "aom/aom.h": "aom",
+    "aom/aom_codec.h": "aom",
 }
 
 def find_includes(file_path):
