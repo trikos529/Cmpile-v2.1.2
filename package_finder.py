@@ -28,6 +28,12 @@ HEADER_MAPPING = {
     "adios2/adios2.h": "adios2",
     "aom/aom.h": "aom",
     "aom/aom_codec.h": "aom",
+    "openfbx/fbx.h": "openfbx",
+    "ffmpeg/avformat.h": "ffmpeg",
+    "ffmpeg/avcodec.h": "ffmpeg",
+    "ffmpeg/avutil.h": "ffmpeg",
+    "audiofile/audiofile.h": "audiofile",
+    "utf8.h": "utf8",
 }
 
 def find_includes(file_path):

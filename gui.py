@@ -14,7 +14,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Cmpile V2.5")
+        self.title("Cmpile V2.6")
         self.geometry("900x650")
 
         self.grid_columnconfigure(1, weight=1)
@@ -25,7 +25,7 @@ class App(ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(5, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2.5", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Cmpile V2.6", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
         
         self.add_file_btn = ctk.CTkButton(self.sidebar_frame, text="Add Files", command=self.add_files)
@@ -90,6 +90,9 @@ class App(ctk.CTk):
 
         self.clean_checkbox = ctk.CTkCheckBox(self.options_frame, text="Clean Build")
         self.clean_checkbox.pack(side="left", padx=10, pady=10)
+
+        self.dll_checkbox = ctk.CTkCheckBox(self.options_frame, text="Build DLL")
+        self.dll_checkbox.pack(side="left", padx=10, pady=10)
 
         self.build_btn = ctk.CTkButton(self.options_frame, text="Build & Run", command=self.start_build, fg_color="green", hover_color="darkgreen")
         self.build_btn.pack(side="right", padx=10, pady=10)
@@ -356,6 +359,7 @@ class App(ctk.CTk):
 
         flags = self.flags_entry.get()
         clean = self.clean_checkbox.get() == 1
+        build_dll = self.dll_checkbox.get() == 1
         
         # Check for compiler override
         compiler_override = self.compiler_path_entry.get().strip()
@@ -369,10 +373,10 @@ class App(ctk.CTk):
         self.log_textbox.delete("0.0", "end")
         self.log_textbox.configure(state="disabled")
 
-        thread = threading.Thread(target=self.run_build_process, args=(flags, clean))
+        thread = threading.Thread(target=self.run_build_process, args=(flags, clean, build_dll))
         thread.start()
 
-    def run_build_process(self, flags, clean):
+    def run_build_process(self, flags, clean, build_dll):
         try:
             # Gather extensions info
             ext_includes = []
@@ -396,7 +400,8 @@ class App(ctk.CTk):
                 run=True,
                 extra_includes=ext_includes,
                 extra_lib_paths=ext_libs,
-                extra_link_flags=ext_flags
+                extra_link_flags=ext_flags,
+                build_dll=build_dll
             )
         except Exception as e:
             self.log_message(f"A critical error occurred: {e}", "error")

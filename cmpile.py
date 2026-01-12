@@ -101,7 +101,7 @@ class CmpileBuilder:
             else:
                 ui.display_status(message)
 
-    def build_and_run(self, source_files, compiler_flags=None, clean=False, run=True, extra_includes=None, extra_lib_paths=None, extra_link_flags=None):
+    def build_and_run(self, source_files, compiler_flags=None, clean=False, run=True, extra_includes=None, extra_lib_paths=None, extra_link_flags=None, build_dll=False):
 
         expanded_files = []
         for path in source_files:
@@ -166,7 +166,7 @@ class CmpileBuilder:
             self.log("No external dependencies detected.")
 
         # 3. Compilation
-        self.log("Compiling...")
+        self.log("Compiling..." if not build_dll else "Compiling DLL...")
 
         if not files:
             self.log("No valid source files found.", "bold red")
@@ -241,11 +241,20 @@ class CmpileBuilder:
             elif download_script.is_tool_on_path("gcc"): linker = "gcc"
             else: linker = GCC_EXE
 
-        exe_name = os.path.splitext(os.path.basename(files[0]))[0] + ".exe"
+        exe_name = os.path.splitext(os.path.basename(files[0]))[0]
+        if build_dll:
+            exe_name += ".dll" if os.name == 'nt' else ".so"
+        else:
+            exe_name += ".exe"
+            
         # Output executable in the source directory (project root), not in 'out' folder
         output_exe = os.path.join(project_root, exe_name)
 
         cmd = [linker] + object_files + ["-o", output_exe]
+        
+        if build_dll:
+            cmd.append("-shared")
+            
         if os.path.exists(lib_path):
             cmd.extend(["-L", lib_path])
         
@@ -258,10 +267,33 @@ class CmpileBuilder:
         if required_packages:
             for pkg in required_packages:
                  if pkg == "nlohmann-json": continue
-                 if pkg == "fmt": cmd.append("-lfmt"); continue
-                 if pkg == "sqlite3": cmd.append("-lsqlite3"); continue
-                 if pkg == "curl": cmd.append("-lcurl"); continue
-                 cmd.append(f"-l{pkg}")
+                 
+                 # Dynamic library searching
+                 lib_name = pkg
+                 if os.path.exists(lib_path):
+                     # Priority: 1. lib{pkg}dll.a (DLL import lib), 2. lib{pkg}.a (Static/Import), 3. {pkg}.lib (MSVC style)
+                     candidates = [f"lib{pkg}dll.a", f"lib{pkg}.a", f"{pkg}.lib"]
+                     found_cand = False
+                     for cand in candidates:
+                         if os.path.exists(os.path.join(lib_path, cand)):
+                             # Convert filename to -l format
+                             if cand.startswith("lib") and cand.endswith(".a"):
+                                 lib_name = cand[3:-2]
+                             elif cand.endswith(".lib"):
+                                 # For .lib files, we might need to pass the full path or just the name depending on linker
+                                 # MinGW often handles .lib, but -l syntax prefers stripping extension
+                                 lib_name = cand[:-4]
+                             found_cand = True
+                             break
+                     
+                     if not found_cand:
+                        # Fallback: Search for any file starting with lib{pkg}
+                        for f in os.listdir(lib_path):
+                            if f.startswith(f"lib{pkg}") and f.endswith(".a"):
+                                lib_name = f[3:-2]
+                                break
+
+                 cmd.append(f"-l{lib_name}")
 
         if extra_link_flags:
             cmd.extend(extra_link_flags)
@@ -278,7 +310,7 @@ class CmpileBuilder:
             self.log(e.stderr, "bold red")
             return False
 
-        if run:
+        if run and not build_dll:
             self.log("Running...", "bold")
 
             env = os.environ.copy()
@@ -304,6 +336,8 @@ class CmpileBuilder:
 
             except Exception as e:
                 self.log(f"Execution error: {e}", "bold red")
+        elif build_dll:
+            self.log(f"DLL created at: {output_exe}", "bold blue")
 
         return True
 
@@ -322,7 +356,7 @@ def main():
 
     # In CLI mode, the builder is provided with our CLI logger
     builder = CmpileBuilder(log_callback=cli_logger)
-    builder.build_and_run(args.files, args.compiler_flags, args.clean, run=True)
+    builder.build_and_run(args.files, args.compiler_flags, args.clean, run=True, build_dll=args.dll)
 
 if __name__ == "__main__":
     try:

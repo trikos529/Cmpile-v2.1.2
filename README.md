@@ -18,14 +18,15 @@ On the first run, Cmpile will:
 - Download and add Git to PATH for cloning other dependencies.
 - Download and add Cmake to PATH for building dependencies and extensions.
 - Detect any `#include` libraries in your code (e.g., `#include <nlohmann/json.hpp>`).
-- If needed, you may install any of the available extensions from the Extensions tab.
 - Install those libraries automatically.
+- If needed, you may install any of the available extensions from the Extensions tab.
 - Compile and run your program.
 
 ### Options
 - `--compiler-flags "..."`: Pass extra flags to the compiler.
   - Example: `python cmpile.py main.cpp --compiler-flags "-O3 -Wall"`
 - `--clean`: Force a re-check of the environment (useful if downloads get corrupted).
+- `--dll`: Build a DLL instead of an executable.
 - `-h, --help`: Show help message.
 
 ## How it Works
@@ -34,6 +35,16 @@ On the first run, Cmpile will:
 - **Dependencies**: The tool scans your C++ file for headers. If it sees a known header (like `fmt/core.h` or `nlohmann/json.hpp`), it installs the corresponding package via vcpkg.
 
 ## What's New
+ # Version 2.6
+ - Added full DLL support when compiling files.
+ - Added a new checkbox in the GUI "Build DLL" to build a DLL file.
+ - Added a new argument for terminal use "-dll" for building DLL files.
+ - Added more packages to the package finder.
+ - Improved compilation handling.
+ - Improved stability for compilation.
+ - Some bugs were fixed.
+ - Fixed some errors when extracting essential resources on the first run.
+ - Rebranded to Version 2.6.
  # Version 2.5
   - Added Cmake as a dependency to download after the first run.
   - New Extensions are now available.
